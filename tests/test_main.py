@@ -9,22 +9,14 @@ def test_read_root():
     assert response.status_code == 200
     assert response.json() == {"message": "Добро пожаловать в API генерации презентаций!"}
 
-def test_generate_presentation():
+def test_generate_from_topic():
     # Пример данных
     data = {
-        "slides": [
-            {"zagolovok": "Слайд 1", "opisanie": "Описание 1", "photo": "image1.png"},
-            {"zagolovok": "Слайд 2", "opisanie": "Описание 2", "photo": "image2.png"}
-        ],
+        "topic": "Космос",
         "slide_count": 2,
         "output_path": "test_output.pptx"
     }
-    # Имитация загрузки файлов
-    files = [
-        ("files", ("image1.png", b"fake image content", "image/png")),
-        ("files", ("image2.png", b"fake image content", "image/png"))
-    ]
-    response = client.post("/generate-presentation/", json=data, files=files)
+    response = client.post("/generate-from-topic/", data={"request": json.dumps(data)})
     assert response.status_code == 200
     assert response.headers["content-type"] == "application/vnd.openxmlformats-officedocument.presentationml.presentation"
     assert os.path.exists("test_output.pptx")

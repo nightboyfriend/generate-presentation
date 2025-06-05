@@ -10,3 +10,8 @@ class PresentationRequest(BaseModel):
     slides: List[SlideData]
     slide_count: int
     output_path: str = "output.pptx"
+
+class GenerateRequest(BaseModel):
+    topic: str  # Тема презентации для LLM
+    slide_count: int
+    output_path: str = "output.pptx"
