@@ -10,7 +10,7 @@ def test_read_root():
     assert response.json() == {"message": "Добро пожаловать в API генерации презентаций!"}
 
 def test_generate_from_topic():
-    # Пример данных
+    # пример
     data = {
         "topic": "Космос",
         "slide_count": 2,
@@ -20,6 +20,6 @@ def test_generate_from_topic():
     assert response.status_code == 200
     assert response.headers["content-type"] == "application/vnd.openxmlformats-officedocument.presentationml.presentation"
     assert os.path.exists("test_output.pptx")
-    # Очистка
+
     if os.path.exists("test_output.pptx"):
         os.remove("test_output.pptx")

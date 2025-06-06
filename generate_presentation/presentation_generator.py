@@ -23,6 +23,7 @@ def add_slide(prs: Presentation, data: Dict) -> None:
             title.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
             title.top = Inches(0.5)
             title.width = Inches(10)
+            content.height = Inches(0.25)
             title.text_frame.paragraphs[0].font.bold = True
 
     if 'opisanie' in data and data['opisanie']:
