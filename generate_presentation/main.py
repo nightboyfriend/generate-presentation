@@ -14,18 +14,22 @@ import aiohttp
 from dotenv import load_dotenv
 
 load_dotenv()
-IMAGE_API_URL = f"{os.environ.get('IMAGE_API_HOST', 'http://192.168.0.59')}:{os.environ.get('IMAGE_API_PORT', '8087')}/llm_tools/image_generate"
+IMAGE_API_URL = f"{os.environ.get('IMAGE_API_HOST', 'http://192.168.0.67')}:{os.environ.get('IMAGE_API_PORT', '8009')}/llm_tools/image_generate"
 
 app = FastAPI(title="Generate Presentation API")
 
+# Директория для временного хранения файлов
 UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
 
+# Подключение статических файлов (для frontend)
 app.mount("/static", StaticFiles(directory="generate_presentation/static"), name="static")
 
+# Инициализация LLM
 llm = LLM()
 
 async def generate_image(description: str, slide_index: int) -> str:
+    """Генерирует изображение по описанию и сохраняет его локально, возвращает путь к файлу."""
     async with aiohttp.ClientSession() as session:
         params = {
             "text": description,
@@ -39,8 +43,8 @@ async def generate_image(description: str, slide_index: int) -> str:
                     logger.error(f"Ошибка API изображений: {await response.text()}")
                     return None
                 image_url = await response.text()
-                image_url = image_url.strip('"')
-
+                image_url = image_url.strip('"')  # Удаляем кавычки
+                # Загружаем изображение
                 async with session.get(image_url) as img_response:
                     if img_response.status != 200:
                         logger.error(f"Ошибка загрузки изображения: {img_response.status}")
@@ -59,11 +63,12 @@ async def root():
 
 @app.post("/generate-from-topic/")
 async def generate_from_topic(
-    request: str = Form(...)  
+    request: str = Form(...)  # Получаем поле 'request' как строку из FormData
 ):
     try:
-        # работа с JSON
+        # Распарсим строку JSON в словарь
         request_data = json.loads(request)
+        # Валидируем данные через модель Pydantic
         gen_request = GenerateRequest(**request_data)
     except json.JSONDecodeError:
         logger.error("Неверный формат JSON в поле 'request'")
@@ -72,21 +77,21 @@ async def generate_from_topic(
         logger.error(f"Ошибка валидации данных: {e}")
         raise HTTPException(status_code=422, detail=f"Ошибка валидации данных: {str(e)}")
 
-    # промпт
-    prompt = f"Сгенерируй данные для презентации на тему '{gen_request.topic}'. Верни результат в формате JSON, содержащем список слайдов, каждый из которых имеет поля 'zagolovok' (заголовок слайда) и 'opisanie' (описание слайда 250 слов). Количество слайдов: {gen_request.slide_count}. Пример: [{{\"zagolovok\": \"Заголовок\", \"opisanie\": \"Описание слайда\"}} ... ]"
+    # Формируем промпт для LLM
+    prompt = f"Сгенерируй данные для презентации на тему '{gen_request.topic}'. Верни результат в формате JSON, содержащем список слайдов, каждый из которых имеет поля 'zagolovok' (заголовок слайда) и 'opisanie' (описание слайда). Количество слайдов: {gen_request.slide_count - 1}. Пример: [{{\"zagolovok\": \"Слайд 1\", \"opisanie\": \"Описание слайда 1\"}}, {{\"zagolovok\": \"Слайд 2\", \"opisanie\": \"Описание слайда 2\"}}]"
     system_prompt = "The output is in JSON format. Return a list of objects with 'zagolovok' and 'opisanie' fields."
 
-    # запрос данных
+    # Запрашиваем данные у LLM
     try:
         slide_data = llm.llama_json(prompt, system_prompt=system_prompt)
         logger.debug(f"Данные от LLM: {slide_data}")
-        #с ключем 'slides'
+        # Извлекаем список слайдов, если данные обернуты в ключ 'slides'
         if isinstance(slide_data, dict) and 'slides' in slide_data:
             slide_data = slide_data['slides']
         if not isinstance(slide_data, list):
             logger.error("LLM вернул некорректный формат данных, ожидался список")
             raise ValueError(f"LLM вернул некорректный формат данных: {slide_data}")
-
+        # Проверяем структуру каждого слайда
         for slide in slide_data:
             if not all(key in slide for key in ["zagolovok", "opisanie"]):
                 logger.error(f"Некорректная структура слайда: {slide}")
@@ -95,7 +100,7 @@ async def generate_from_topic(
         logger.error(f"Ошибка при запросе к LLM: {e}")
         raise HTTPException(status_code=500, detail=f"Ошибка генерации данных слайдов: {str(e)}")
 
-    # фото
+    # Генерация изображений для каждого слайда
     for i, slide in enumerate(slide_data):
         image_path = await generate_image(slide["opisanie"], i)
         if image_path:
@@ -103,13 +108,15 @@ async def generate_from_topic(
         else:
             logger.warning(f"Не удалось сгенерировать изображение для слайда {i+1}")
 
-    #собираем презу
+    # Генерация презентации
     output_path = gen_request.output_path if gen_request.output_path.endswith('.pptx') else "output.pptx"
-    generate_presentation(slide_data, gen_request.slide_count, output_path)
+    generate_presentation(slide_data, gen_request.slide_count - 1, output_path, gen_request.topic)
     
+    # Проверка существования файла
     if not os.path.exists(output_path):
         raise HTTPException(status_code=500, detail="Не удалось сгенерировать презентацию")
     
+    # Возврат файла для скачивания
     return FileResponse(
         path=output_path,
         filename=output_path,
@@ -118,6 +125,7 @@ async def generate_from_topic(
 
 @app.on_event("shutdown")
 async def cleanup():
+    # Удаление временных файлов при завершении работы
     if UPLOAD_DIR.exists():
         for file in UPLOAD_DIR.glob("*"):
             file.unlink()

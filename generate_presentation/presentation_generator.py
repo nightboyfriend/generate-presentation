@@ -10,6 +10,25 @@ def create_presentation(slide_count: int) -> Presentation:
     prs.slide_height = Inches(5.625)
     return prs
 
+def add_title_slide(prs: Presentation, topic: str) -> None:
+    """Добавляет титульный слайд с темой презентации, отцентрированным по центру."""
+    slide_layout = prs.slide_layouts[0]  # Используем пустой или титульный шаблон
+    slide = prs.slides.add_slide(slide_layout)
+
+    # Добавляем текстовое поле для темы
+    title = slide.shapes.title
+    if title:
+        title.text = topic
+        title.text_frame.paragraphs[0].font.name = 'Arial'
+        title.text_frame.paragraphs[0].font.size = Pt(36)  # Увеличиваем размер шрифта
+        title.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+        title.text_frame.paragraphs[0].font.bold = True
+        # Центрируем текстовое поле
+        title.left = Inches(0)
+        title.top = Inches(2)  # Примерно середина слайда по вертикали
+        title.width = Inches(10)
+        title.height = Inches(1.5)
+
 def add_slide(prs: Presentation, data: Dict) -> None:
     slide_layout = prs.slide_layouts[1]
     slide = prs.slides.add_slide(slide_layout)
@@ -23,7 +42,6 @@ def add_slide(prs: Presentation, data: Dict) -> None:
             title.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
             title.top = Inches(0.5)
             title.width = Inches(10)
-            content.height = Inches(0.25)
             title.text_frame.paragraphs[0].font.bold = True
 
     if 'opisanie' in data and data['opisanie']:
@@ -46,11 +64,15 @@ def add_slide(prs: Presentation, data: Dict) -> None:
         except Exception as e:
             print(f"Ошибка добавления фото для слайда '{data.get('zagolovok', 'Неизвестно')}': {e}")
 
-def generate_presentation(data: List[Dict], slide_count: int, output_path: str) -> None:
-    if not data:
-        print("Нет данных для генерации презентации")
+def generate_presentation(data: List[Dict], slide_count: int, output_path: str, topic: str) -> None:
+    if not data and not topic:
+        print("Нет данных или темы для генерации презентации")
         return
     prs = create_presentation(slide_count)
+    # Добавляем титульный слайд с темой
+    if topic:
+        add_title_slide(prs, topic)
+    # Добавляем остальные слайды
     for i, slide_data in enumerate(data[:slide_count]):
         add_slide(prs, slide_data)
     try:

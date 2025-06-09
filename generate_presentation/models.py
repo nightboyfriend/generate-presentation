@@ -4,7 +4,7 @@ from typing import List, Optional
 class SlideData(BaseModel):
     zagolovok: str
     opisanie: str
-    photo: Optional[str] = None  
+    photo: Optional[str] = None  # Путь к фото, будет обновлен после загрузки
 
 class PresentationRequest(BaseModel):
     slides: List[SlideData]
@@ -12,6 +12,6 @@ class PresentationRequest(BaseModel):
     output_path: str = "output.pptx"
 
 class GenerateRequest(BaseModel):
-    topic: str  
+    topic: str  # Тема презентации для LLM
     slide_count: int
     output_path: str = "output.pptx"

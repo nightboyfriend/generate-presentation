@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "generate-presentation"
 version = "0.1.0"
-description = "Веб-приложение на FastAPI для генерации презентаций с помощью LLM и API изображений"
+description = "Веб-приложение на FastAPI для генерации презентаций PowerPoint с помощью LLM и API изображений"
 
 [tool.poetry.dependencies]
 python = "^3.13"
