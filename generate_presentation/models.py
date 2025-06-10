@@ -15,3 +15,4 @@ class GenerateRequest(BaseModel):
     topic: str  # Тема презентации для LLM
     slide_count: int
     output_path: str = "output.pptx"
+    template_mode: bool = False  # Режим генерации: обычный или по шаблону

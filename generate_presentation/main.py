@@ -14,7 +14,7 @@ import aiohttp
 from dotenv import load_dotenv
 
 load_dotenv()
-IMAGE_API_URL = f"{os.environ.get('IMAGE_API_HOST', 'http://192.168.0.67')}:{os.environ.get('IMAGE_API_PORT', '8009')}/llm_tools/image_generate"
+IMAGE_API_URL = f"{os.environ.get('IMAGE_API_HOST', 'http://192.168.0.59')}:{os.environ.get('IMAGE_API_PORT', '8087')}/llm_tools/image_generate"
 
 app = FastAPI(title="Generate Presentation API")
 
@@ -77,8 +77,13 @@ async def generate_from_topic(
         logger.error(f"Ошибка валидации данных: {e}")
         raise HTTPException(status_code=422, detail=f"Ошибка валидации данных: {str(e)}")
 
+    # Валидация slide_count для шаблонного режима
+    if gen_request.template_mode and (gen_request.slide_count < 3 or gen_request.slide_count > 20):
+        raise HTTPException(status_code=422, detail="Количество слайдов для шаблонного режима должно быть от 3 до 20")
+
     # Формируем промпт для LLM
-    prompt = f"Сгенерируй данные для презентации на тему '{gen_request.topic}'. Верни результат в формате JSON, содержащем список слайдов, каждый из которых имеет поля 'zagolovok' (заголовок слайда) и 'opisanie' (описание слайда). Количество слайдов: {gen_request.slide_count - 1}. Пример: [{{\"zagolovok\": \"Слайд 1\", \"opisanie\": \"Описание слайда 1\"}}, {{\"zagolovok\": \"Слайд 2\", \"opisanie\": \"Описание слайда 2\"}}]"
+    slide_count_for_llm = gen_request.slide_count - 1 if not gen_request.template_mode else gen_request.slide_count - 2  # -1 для титульного, -1 для последнего в шаблоне
+    prompt = f"Сгенерируй данные для презентации на тему '{gen_request.topic}'. Верни результат в формате JSON, содержащем список слайдов, каждый из которых имеет поля 'zagolovok' (заголовок слайда) и 'opisanie' (описание слайда 200-230 слов). Количество слайдов: {slide_count_for_llm}. Пример: [{{\"zagolovok\": \"Слайд 1\", \"opisanie\": \"Описание слайда 1\"}}, {{\"zagolovok\": \"Слайд 2\", \"opisanie\": \"Описание слайда 2\"}}]"
     system_prompt = "The output is in JSON format. Return a list of objects with 'zagolovok' and 'opisanie' fields."
 
     # Запрашиваем данные у LLM
@@ -110,7 +115,7 @@ async def generate_from_topic(
 
     # Генерация презентации
     output_path = gen_request.output_path if gen_request.output_path.endswith('.pptx') else "output.pptx"
-    generate_presentation(slide_data, gen_request.slide_count - 1, output_path, gen_request.topic)
+    generate_presentation(slide_data, gen_request.slide_count, output_path, gen_request.topic, gen_request.template_mode)
     
     # Проверка существования файла
     if not os.path.exists(output_path):
@@ -125,7 +130,7 @@ async def generate_from_topic(
 
 @app.on_event("shutdown")
 async def cleanup():
-    # Удаление временных файлов при завершении работы
+    # Удаление временных файлов при завершении работы, кроме шаблона
     if UPLOAD_DIR.exists():
         for file in UPLOAD_DIR.glob("*"):
             file.unlink()
