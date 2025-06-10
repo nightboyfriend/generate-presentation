@@ -15,20 +15,18 @@ def check_template(template_path="templates/template.pptx"):
             print("Ошибка: Шаблон должен содержать минимум 2 слайда (титульный и основной)")
             return
 
-        # Проверка титульного слайда
         title_slide = prs.slides[0]
         if title_slide.shapes.title:
             print("Титульный слайд: Найден плейсхолдер заголовка")
         else:
             print("Предупреждение: На титульном слайде отсутствует плейсхолдер заголовка")
 
-        # Проверка основного слайда
         if len(prs.slides) > 1:
             content_slide = prs.slides[1]
             placeholders = [shape for shape in content_slide.shapes if shape.is_placeholder]
-            title_placeholder = any(p.placeholder_format.type == 1 for p in placeholders)  # Title
-            body_placeholder = any(p.placeholder_format.type == 7 for p in placeholders)  # Body/Content
-            picture_placeholder = any(p.placeholder_format.type == 18 for p in placeholders)  # Picture
+            title_placeholder = any(p.placeholder_format.type == 1 for p in placeholders)  
+            body_placeholder = any(p.placeholder_format.type == 7 for p in placeholders)  
+            picture_placeholder = any(p.placeholder_format.type == 18 for p in placeholders)
             print("Основной слайд:")
             print(f"  Плейсхолдер заголовка: {'найден' if title_placeholder else 'не найден'}")
             print(f"  Плейсхолдер текста: {'найден' if body_placeholder else 'не найден'}")
@@ -36,7 +34,6 @@ def check_template(template_path="templates/template.pptx"):
         else:
             print("Ошибка: Основной слайд отсутствует")
 
-        # Проверка последнего слайда
         if len(prs.slides) > 2:
             print("Последний слайд: Найден")
         else:

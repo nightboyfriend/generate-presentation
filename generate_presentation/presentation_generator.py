@@ -13,16 +13,14 @@ def create_presentation(slide_count: int) -> Presentation:
     return prs
 
 def load_template(template_path: str = "templates/template.pptx") -> Presentation:
-    """Загружает шаблон презентации."""
     if not os.path.exists(template_path):
         raise FileNotFoundError(f"Шаблон {template_path} не найден")
     return Presentation(template_path)
 
 def add_template_title_slide(prs: Presentation, topic: str) -> None:
-    """Добавляет титульный слайд из шаблона, заменяя текст темы."""
     if len(prs.slides) < 1:
         raise ValueError("Шаблон не содержит титульный слайд")
-    slide = prs.slides[0]  # Предполагаем, что первый слайд — титульный
+    slide = prs.slides[0]
     title = slide.shapes.title
     if title:
         title.text = topic
@@ -31,14 +29,11 @@ def add_template_title_slide(prs: Presentation, topic: str) -> None:
         logger.warning("На титульном слайде отсутствует плейсхолдер заголовка")
 
 def add_template_content_slide(prs: Presentation, data: Dict, slide_index: int) -> None:
-    """Добавляет основной слайд из шаблона, заменяя заголовок, описание и изображение."""
     if len(prs.slide_layouts) < 2:
         raise ValueError("Шаблон не содержит макет для основного слайда")
-    slide_layout = prs.slide_layouts[1]  # Предполагаем, что второй макет — для основного слайда
+    slide_layout = prs.slide_layouts[1]
     slide = prs.slides.add_slide(slide_layout)
     logger.debug(f"Добавлен основной слайд {slide_index} с макетом {slide_layout.name}")
-
-    # Замена заголовка
     title = slide.shapes.title
     if title and 'zagolovok' in data and data['zagolovok']:
         title.text = data['zagolovok']
@@ -46,10 +41,9 @@ def add_template_content_slide(prs: Presentation, data: Dict, slide_index: int) 
     else:
         logger.warning(f"Слайд {slide_index}: Плейсхолдер заголовка не найден или заголовок отсутствует")
 
-    # Замена описания
     content_placeholder = None
     for shape in slide.placeholders:
-        if shape.placeholder_format.type == 7:  # Body/Content placeholder
+        if shape.placeholder_format.type == 7:
             content_placeholder = shape
             break
     if content_placeholder and 'opisanie' in data and data['opisanie']:
@@ -60,22 +54,18 @@ def add_template_content_slide(prs: Presentation, data: Dict, slide_index: int) 
     else:
         logger.warning(f"Слайд {slide_index}: Плейсхолдер текста не найден или описание отсутствует")
 
-    # Поиск плейсхолдера изображения
     picture_placeholder = None
     for shape in slide.placeholders:
-        if shape.placeholder_format.type == 18:  # Picture placeholder
+        if shape.placeholder_format.type == 18:
             picture_placeholder = shape
             break
 
-    # Добавление изображения
     if 'photo' in data and data['photo'] and os.path.exists(data['photo']):
         try:
             if picture_placeholder:
-                # Используем плейсхолдер изображения
                 picture_placeholder.insert_picture(data['photo'])
                 logger.debug(f"Слайд {slide_index}: Изображение вставлено в плейсхолдер")
             else:
-                # Если плейсхолдера нет, добавляем изображение по координатам
                 slide.shapes.add_picture(data['photo'], Inches(6), Inches(1), width=Inches(3))
                 logger.debug(f"Слайд {slide_index}: Изображение добавлено по координатам Inches(6), Inches(1)")
         except Exception as e:
@@ -84,16 +74,14 @@ def add_template_content_slide(prs: Presentation, data: Dict, slide_index: int) 
         logger.warning(f"Слайд {slide_index}: Изображение не найдено или путь некорректен: {data.get('photo', 'Отсутствует')}")
 
 def add_template_final_slide(prs: Presentation, template_prs: Presentation) -> None:
-    """Копирует последний слайд из шаблона, если он существует."""
     if len(template_prs.slides) >= 3:
-        slide_layout = template_prs.slide_layouts[2]  # Предполагаем, что третий слайд — последний
+        slide_layout = template_prs.slide_layouts[2]
         prs.slides.add_slide(slide_layout)
         logger.debug("Последний слайд добавлен из шаблона")
     else:
         logger.warning("Последний слайд в шаблоне отсутствует, не добавлен")
 
 def add_slide(prs: Presentation, data: Dict) -> None:
-    """Добавляет слайд для обычного режима."""
     slide_layout = prs.slide_layouts[1]
     slide = prs.slides.add_slide(slide_layout)
 
@@ -132,19 +120,14 @@ def generate_presentation(data: List[Dict], slide_count: int, output_path: str, 
     if not data and not topic:
         print("Нет данных или темы для генерации презентации")
         return
-    
     if template_mode:
         prs = load_template()
-        # Добавляем титульный слайд
         add_template_title_slide(prs, topic)
-        # Добавляем основные слайды (дублируем второй слайд из шаблона)
-        for i, slide_data in enumerate(data[:slide_count - 2]):  # -2 для титульного и последнего
+        for i, slide_data in enumerate(data[:slide_count - 2]): 
             add_template_content_slide(prs, slide_data, i + 1)
-        # Добавляем последний слайд
         add_template_final_slide(prs, prs)
     else:
         prs = create_presentation(slide_count)
-        # Добавляем титульный слайд
         if topic:
             slide_layout = prs.slide_layouts[0]
             slide = prs.slides.add_slide(slide_layout)
@@ -159,7 +142,6 @@ def generate_presentation(data: List[Dict], slide_count: int, output_path: str, 
                 title.top = Inches(2)
                 title.width = Inches(10)
                 title.height = Inches(1.5)
-        # Добавляем остальные слайды
         for i, slide_data in enumerate(data[:slide_count - 1]):
             add_slide(prs, slide_data)
     
